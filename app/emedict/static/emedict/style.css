@@ -73,3 +73,8 @@ p, li {
 .lem_init label {
     float: left;
 }
+
+.table-right-padding td,
+.table-right-padding th {
+  padding-right: 16px;
+}

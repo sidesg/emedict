@@ -14,7 +14,7 @@
 <h2>Lemmata</h2>
 <ul>
     {% for l in lemmata %}
-    <li><a href="{% url 'emedict:lemma' l.pk %}">{{ l.cf }}</a> ({{ l.forms.first.spellings.first.spelling_cun }} {{l.forms.first.spellings.first.spelling_lat}}): {{ l.definitions.first }}</li>
+    <li><a href="{% url 'emedict:lemma' l.pk %}">{{ l.cf }}</a> ({{ l.base_spelling.spelling_cun }} {{l.base_spelling.spelling_lat}}): {{ l.definitions.first }}</li>
     {% endfor %}
 </ul>
 {% endif %}

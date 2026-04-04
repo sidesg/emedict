@@ -1,26 +1,26 @@
 {% extends "emedict/base.html" %}
 {% block title %}Emedict: compound verbs{% endblock %}
 {% block content %}
-
+<h2>Compound Verbs</h2>
 <div class="floatcont">
     <div class="leftfloat">
-        <h2>By component noun</h2>
+        <h3>By component noun</h3>
         <ul>
             {% for lem in nouns %}
             <li>
                 <a href="{% url 'emedict:compverbcomp' lem.pk %}">{{ lem.cf }}</a> 
-                    ({{ lem.forms.first.spellings.first }}): {{ lem.definitions.first }}
+                    ({{ lem.base_spelling }}): {{ lem.definitions.first }}
             </li>
             {% endfor %}
         </ul>
     </div>
 
     <div class="leftfloat">
-        <h2>By component verb</h2>
+        <h3>By component verb</h3>
         <ul>
             {% for lem in verbs %}
             <li><a href="{% url 'emedict:compverbcomp' lem.pk %}">{{ lem.cf }}</a> 
-                ({{ lem.forms.first.spellings.first }}): {{ lem.definitions.first }}</li>
+                ({{ lem.base_spelling }}): {{ lem.definitions.first }}</li>
             {% endfor %}
         </ul>
     </div>

@@ -7,13 +7,13 @@
     {% for lem in lemmalist %}
     <li><a href="{% url 'emedict:lemma' lem.pk %}">{{ lem }}</a>
         {% if baselem.pos.term == "noun" %}
-        ({{ lem.forms.first.spellings.first }}):
+        ({{ lem.base_spelling }}):
         {{ lem.definitions.first }}
         <ul>
             {% for comp in lem.components.all %}{% if comp.pos.term == "verb" %}
             <li>
                 <a href="{% url 'emedict:lemma' comp.pk %}">{{ comp }}</a>
-                ({{ comp.forms.first.spellings.first }}):
+                ({{ comp.base_spelling }}):
                 {{ comp.definitions.first }}
             </li>
             {% endif %}
@@ -22,13 +22,13 @@
         {% endif %}
 
         {% if baselem.pos.term == "verb" %}
-        ({{ lem.forms.first.spellings.first }}):
+        ({{ lem.base_spelling }}):
         {{ lem.definitions.first }}
         <ul>
             {% for comp in lem.components.all %}{% if comp.pos.term == "noun" %}
             <li>
                 <a href="{% url 'emedict:lemma' comp.pk %}">{{ comp }}</a>
-                ({{ comp.forms.first.spellings.first }}):
+                ({{ comp.base_spelling }}):
                 {{ comp.definitions.first }}
             </li>
             {% endif %}
