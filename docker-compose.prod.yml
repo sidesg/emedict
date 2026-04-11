@@ -1,43 +1,44 @@
+volumes:
+  postgres_data:
+  pgadmin_data:
+  static_volume:
+  esdata:
 services:
   nginx:
     build: ./nginx
     volumes:
-      - ./prod_data/static_volume:/home/app/web/staticfiles
+      - static_volume:/home/app/web/staticfiles
     ports:
       - 8000:80
     depends_on:
       - web
-
   web:
     build:
       context: ./app
       dockerfile: Dockerfile.prod
     command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
     volumes:
-      - ./prod_data/static_volume:/home/app/web/staticfiles
+      - static_volume:/home/app/web/staticfiles
     expose:
       - 8000
     env_file:
       - .env.prod
     depends_on:
       - db
-
   db:
     image: postgres:15
     volumes:
-      - ./prod_data/postgres_data:/var/lib/postgresql/data/
+      - postgres_data:/var/lib/postgresql/data/
     env_file:
       - .env.prod.db
-
   pgadmin:
     image: dpage/pgadmin4
     volumes:
-      - ./prod_data/data_pgadmin:/var/lib/pgadmin
+      - pgadmin_data:/var/lib/pgadmin
     env_file:
       - .env.prod.pga
     ports:
       - "8080:80"
-
   elasticsearch:
     image: elasticsearch:9.2.3
     expose:
@@ -47,4 +48,4 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
     volumes:
-      - ./prod_data/esdata:/usr/share/elasticsearch/data
+      - esdata:/usr/share/elasticsearch/data
