@@ -347,3 +347,4 @@ class TxtSourceListView(generic.ListView):
 class LemmaViewSetSerialized(viewsets.ModelViewSet):
     serializer_class = LemmaSerializer
     queryset = Lemma.objects.all()
+    http_method_names = ['get', 'post', 'head']
