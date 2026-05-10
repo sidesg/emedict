@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "emedict",
-    "django_elasticsearch_dsl",
     "rest_framework",
 ]
 
@@ -133,12 +132,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CSRF_TRUSTED_ORIGINS = os.environ.get("TRUSTED_ORIGINS", default="http://localhost:8000").split(" ")
-
-ELASTICSEARCH_DSL={
-    'default': {
-        'hosts': 'http://elasticsearch:9200',
-    }
-}
 
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",

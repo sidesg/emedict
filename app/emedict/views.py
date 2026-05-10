@@ -1,22 +1,19 @@
-from typing import Any
+from django.contrib.postgres.search import TrigramSimilarity
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Q, F, Max, Value
+from django.db.models.functions import Coalesce
 from django.db.models.query import QuerySet
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.views import generic
-from django.db.models import Q
-from django.core.paginator import Paginator
-from django.core.paginator import EmptyPage
-from django.core.paginator import PageNotAnInteger
-
-import elasticsearch.dsl as edsl
 
 from rest_framework import viewsets
+from typing import Any
 
 from .forms import LemmaInitialLetterForm, LemmaFacetForm, LemmaAdvancedSearchForm, SearchFacetForm
 from .models import Lemma, Tag, FormType, Form, TxtSource, Pos
 from .serializers import LemmaSerializer
-from .documents import LemmaDocument
 
 LEMMA_PAGINATION = 40
 
@@ -103,113 +100,75 @@ class LemmaSearchView(generic.FormView):
 
     def get(self, request, *args, **kwargs):
         form = LemmaAdvancedSearchForm(self.request.GET or None)
+        query_set = Lemma.objects.none()
+        facet_form = None
 
         if form.is_valid():
-            term = request.GET["search_term"]
-            term_type = request.GET["search_type"]
-            selected_poss = request.GET.getlist("poss", None)
-            selected_tags = request.GET.getlist("tags", None)
+            term = request.GET.get("search_term", "")
+            term_type = request.GET.get("search_type", "lemma")
+            selected_poss = request.GET.getlist("poss")
+            selected_tags = request.GET.getlist("tags")
 
-            match term_type:
-                case "lemma":
-                    # fields = [
-                    #     "cf", "forms__cf", "forms.spellings__spelling_lat", "sortform"
-                    # ]
-                    q = (
-                        edsl.Q(
-                            "multi_match",
-                            query = term,
-                            fields =  ["cf, sortform"]
-                        ) |
-                        edsl.Q(
-                            "nested",
-                            path="forms",
-                            query=edsl.Q(
-                                "match",
-                                forms__cf=term
-                            )
-                        ) |
-                        edsl.Q(
-                            "nested",
-                            path="forms",
-                            query=edsl.Q(
-                                "nested",
-                                path="forms.spellings",
-                                query=edsl.Q(
-                                    "match",
-                                    forms__spellings__spelling_lat=term
-                                )
-                            )
+            if term:
+                if term_type == "definition":
+                    query_set = Lemma.objects.annotate(
+                        similarity=TrigramSimilarity(
+                            "definitions__definition", term
                         )
-                    )                
-                case "definition":
-                    # fields = ["definitions__definition"]
-                    q = edsl.Q(
-                        "nested",
-                        path="definitions",
-                        query=edsl.Q(
-                            "match",
-                            definitions__definition=term
-                        )                      
-                    )
-                case _:
-                    q = (
-                        edsl.Q(
-                            "multi_match",
-                            query = term,
-                            fields =  ["cf, sortform"]
-                        ) |
-                        edsl.Q(
-                            "nested",
-                            path="forms",
-                            query=edsl.Q(
-                                "match",
-                                forms__cf=term
-                            )
-                        ) |
-                        edsl.Q(
-                            "nested",
-                            path="forms",
-                            query=edsl.Q(
-                                "nested",
-                                path="forms.spellings",
-                                query=edsl.Q(
-                                    "match",
-                                    forms__spellings__spelling_lat=term
-                                )
-                            )
+                    ).filter(similarity__gt=0.3)
+
+                else:
+                    query_set = Lemma.objects.annotate(
+                        sim_cf=TrigramSimilarity("cf", term) * 0.5,
+                        sim_sort=TrigramSimilarity("sortform", term) * 0.5,
+                        sim_form=Max(
+                            TrigramSimilarity("forms__cf", term)
+                        ) * 0.2,
+                        sim_spelling=Max(
+                            TrigramSimilarity("forms__spellings__spelling_lat", term)
+                        ) * 0.2
+                    ).annotate(
+                        similarity=(
+                            Coalesce(F("sim_cf"), Value(0.0)) +
+                            Coalesce(F("sim_sort"), Value(0.0)) +
+                            Coalesce(F("sim_form"), Value(0.0)) +
+                            Coalesce(F("sim_spelling"), Value(0.0))
                         )
-                    )
-            # TODO: convert sub nums to regular?
-            search = LemmaDocument.search().extra(size=100).query(q)
-            query_set: QuerySet = search.to_queryset()
-            query_set = query_set.distinct()
-            
-            possible_poss = Pos.objects.filter(id__in=query_set.values("pos"), type="COM")
-            possible_tags = Tag.objects.filter(id__in=query_set.values("tags"))
+                    ).filter(similarity__gt=0.1)
+
+                query_set = query_set.filter(pos__type="COM")
+                query_set = query_set.order_by("-similarity")
+
+            possible_poss = Pos.objects.filter(
+                id__in=query_set.values("pos"),
+                type="COM"
+            )
+            possible_tags = Tag.objects.filter(
+                id__in=query_set.values("tags")
+            )
 
             if selected_poss:
                 query_set = query_set.filter(
-                    Q(pos__term__in=selected_poss),
+                    pos__term__in=selected_poss,
                     pos__type="COM"
-                ).distinct().order_by("sortform")
+                ).distinct()
+
             if selected_tags:
                 query_set = query_set.filter(
-                    Q(tags__term__in=selected_tags),
-                    pos__type="COM"
-                )
+                    tags__term__in=selected_tags
+                ).distinct()
 
             facet_form = SearchFacetForm(
                 possible_poss,
                 possible_tags,
                 initial={
                     "search_term": term,
-                    "search_type":term_type,
-                    "tags":selected_tags,
-                    "poss":selected_poss
+                    "search_type": term_type,
+                    "tags": selected_tags,
+                    "poss": selected_poss,
                 },
             )
-    
+
         return self.render_to_response(self.get_context_data(
             lemmalist=query_set,
             form=LemmaInitialLetterForm,

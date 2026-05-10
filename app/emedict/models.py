@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.contrib.postgres.indexes import GinIndex
 
 import re
 import json
@@ -183,6 +184,12 @@ class Lemma(models.Model):
 
     def make_ttl(self, lem_uri) -> str:
         return self._make_rdf(lem_uri).serialize(format="ttl")
+    
+    class Meta:
+        indexes = [
+            GinIndex(fields=["cf"], name="cf_trgm", opclasses=["gin_trgm_ops"]),
+            GinIndex(fields=["sortform"], name="sort_trgm", opclasses=["gin_trgm_ops"]),
+        ]
 
     def __str__(self) -> str:
         return f"{self.cf} ({self.pk})"
@@ -234,6 +241,15 @@ class Form(models.Model):
     formtype = models.ManyToManyField(FormType, blank=True)
     base = models.BooleanField(default=False)
 
+    class Meta:
+        indexes = [
+            GinIndex(
+                fields=["cf"],
+                name="formcf_trgm",
+                opclasses=["gin_trgm_ops"],
+            ),
+        ]
+
     def __str__(self) -> str:
         return self.cf
 
@@ -260,6 +276,15 @@ class Spelling(models.Model):
     spelling_cun = models.CharField(max_length=200, blank=True)
     # signs = models.ManyToManyField(Sign, blank=True)
     note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        indexes = [
+            GinIndex(
+                fields=["spelling_lat"],
+                name="spelling_lat_trgm",
+                opclasses=["gin_trgm_ops"],
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.spelling_lat
