@@ -8,7 +8,5 @@ echo Migrating models
 docker compose exec web python manage.py migrate
 echo Loading data
 docker compose exec web python manage.py loaddata emedictdata.json.gz --app emedict
-echo "(Re)building elasticsearch indices"
-docker compose exec web python manage.py search_index --rebuild
 
 docker compose exec web python manage.py createsuperuser
